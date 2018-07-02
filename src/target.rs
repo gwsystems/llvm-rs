@@ -93,3 +93,10 @@ impl Target {
         unsafe { target_machine::LLVMTargetHasTargetMachine(self.into()) != 0 }
     }
 }
+
+pub fn get_default_target_triple() -> &'static str{
+    unsafe {
+        let s = target_machine::LLVMGetDefaultTargetTriple();
+        util::to_str(s)
+    }
+}

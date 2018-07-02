@@ -79,6 +79,7 @@ impl Value {
         unsafe { core::LLVMTypeOf(self.into()) }.into()
     }
 }
+
 /// Comparative operations on values.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Predicate {

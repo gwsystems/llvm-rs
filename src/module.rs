@@ -42,6 +42,12 @@ impl Module {
         let c_name = CString::new(name).unwrap();
         unsafe { CSemiBox::new(core::LLVMModuleCreateWithNameInContext(c_name.as_ptr(), context.into())) }
     }
+    /// Dump the module to stderr (for debugging purposes)
+    pub fn dump(&self) {
+        unsafe {
+            core::LLVMDumpModule(self.into());
+        }
+    }
     /// Add a global to the module with the given type and name.
     pub fn add_global<'a>(&'a self, name: &str, ty: &'a Type) -> &'a GlobalVariable {
         util::with_cstr(name, |ptr| unsafe {

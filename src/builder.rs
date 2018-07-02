@@ -1,5 +1,5 @@
 use libc::{c_char, c_uint};
-use ffi::prelude::{LLVMBuilderRef, LLVMValueRef};
+use ffi::prelude::{LLVMBasicBlockRef, LLVMBuilderRef, LLVMValueRef};
 use ffi::{core, LLVMBuilder, LLVMRealPredicate, LLVMIntPredicate};
 use cbox::CSemiBox;
 use std::marker::PhantomData;
@@ -10,6 +10,7 @@ use types::Type;
 use value::{Function, Value, Predicate};
 
 static NULL_NAME:[c_char; 1] = [0];
+
 
 /// This provides a uniform API for creating instructions and inserting them into a basic block.
 pub struct Builder(PhantomData<[u8]>);
@@ -50,6 +51,24 @@ impl Builder {
     pub fn position_at_end(&self, block: &BasicBlock) {
         unsafe { core::LLVMPositionBuilderAtEnd(self.into(), block.into()) }
     }
+    /// Build a PHI instruction with no useful values
+    pub fn build_phi(&self, incoming: Vec<(&BasicBlock, &Value)>) -> &Value{
+        let count = incoming.len() as u32;
+        assert!(count > 0);
+        let ty = incoming[0].1.get_type();
+
+        let mut incoming_values: Vec<LLVMValueRef> = Vec::with_capacity(incoming.len());
+        let mut incoming_blocks: Vec<LLVMBasicBlockRef> = Vec::with_capacity(incoming.len());
+        for (bb, v) in incoming {
+            incoming_values.push(v.into());
+            incoming_blocks.push(bb.into());
+        }
+        unsafe {
+            let phi = core::LLVMBuildPhi(self.into(), ty.into(), NULL_NAME.as_ptr());
+            core::LLVMAddIncoming(phi, incoming_values.as_mut_ptr(), incoming_blocks.as_mut_ptr(), count);
+            phi
+        }.into()
+    }
     /// Build an instruction that returns from the function with void.
     pub fn build_ret_void(&self) -> &Value {
         unsafe { core::LLVMBuildRetVoid(self.into()) }.into()
@@ -73,6 +92,11 @@ impl Builder {
     pub fn build_free(&self, val: &Value) -> &Value {
         unsafe { core::LLVMBuildFree(self.into(), val.into()) }.into()
     }
+
+    /// Build an unreachable instruction
+    pub fn build_unreachable(&self) -> &Value {
+        unsafe { core::LLVMBuildUnreachable(self.into()).into() }
+    }
     /// Build an instruction that store the value `val` in the pointer `ptr`.
     pub fn build_store(&self, val: &Value, ptr: &Value) -> &Value {
         unsafe { core::LLVMBuildStore(self.into(), val.into(), ptr.into()) }.into()
@@ -95,6 +119,16 @@ impl Builder {
             call.into()
         }
     }
+
+    pub fn build_value_call(&self, func: &Value, args: &[&Value]) -> &Value {
+        unsafe {
+            let call = core::LLVMBuildCall(self.into(), func.into(), args.as_ptr() as *mut LLVMValueRef, args.len() as c_uint, NULL_NAME.as_ptr());
+            core::LLVMSetTailCall(call, 0);
+            call.into()
+        }
+    }
+
+
     /// Build an instruction that calls the function `func` with the arguments `args`.
     ///
     /// This will return the return value of the function.
@@ -121,10 +155,42 @@ impl Builder {
     pub fn build_zext(&self, value: &Value, dest: &Type) -> &Value {
         unsafe { core::LLVMBuildZExtOrBitCast(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
     }
+
+    /// Build an instruction that sign extends its operand to the type `dest`.
+    pub fn build_sext(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildSExtOrBitCast(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+
     /// Build an instruction that truncates the high-order bits of value to fit into a certain type.
     pub fn build_trunc(&self, value: &Value, dest: &Type) -> &Value {
         unsafe { core::LLVMBuildTrunc(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
     }
+    /// Build an instruction that converts a floating point value to an signed int type
+    pub fn build_fptosi(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildFPToSI(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+    /// Build an instruction that converts a floating point value to an unsigned int type
+    pub fn build_fptoui(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildFPToUI(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+    /// Build an instruction that converts a signed int to an floating point type
+    pub fn build_sitofp(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildSIToFP(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+    /// Build an instruction that converts a unsigned int to an floating point type
+    pub fn build_uitofp(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildUIToFP(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+
+    pub fn build_fpext(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildFPExt(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+
+    pub fn build_fptrunc(&self, value: &Value, dest: &Type) -> &Value {
+        unsafe { core::LLVMBuildFPTrunc(self.into(), value.into(), dest.into(), NULL_NAME.as_ptr()).into() }
+    }
+
+
     /// Build an instruction that inserts a value into an aggregate data value.
     pub fn build_insert_value(&self, agg: &Value, elem: &Value, index: usize) -> &Value {
         unsafe { core::LLVMBuildInsertValue(self.into(), agg.into(), elem.into(), index as c_uint, NULL_NAME.as_ptr()).into() }
@@ -149,19 +215,26 @@ impl Builder {
             switch.into()
         }
     }
+
     un_op!{build_load, LLVMBuildLoad}
     un_op!{build_neg, LLVMBuildNeg}
+    un_op!{build_fneg, LLVMBuildFNeg}
     un_op!{build_not, LLVMBuildNot}
     bin_op!{build_add, LLVMBuildAdd, LLVMBuildFAdd}
     bin_op!{build_sub, LLVMBuildSub, LLVMBuildFSub}
     bin_op!{build_mul, LLVMBuildMul, LLVMBuildFMul}
     bin_op!{build_div, LLVMBuildSDiv, LLVMBuildFDiv}
+    bin_op!{build_udiv, LLVMBuildUDiv}
+    bin_op!{build_urem, LLVMBuildURem}
+    bin_op!{build_srem, LLVMBuildSRem}
     bin_op!{build_shl, LLVMBuildShl}
     bin_op!{build_ashr, LLVMBuildAShr}
+    bin_op!{build_lshr, LLVMBuildLShr}
     bin_op!{build_and, LLVMBuildAnd}
     bin_op!{build_or, LLVMBuildOr}
+    bin_op!{build_xor, LLVMBuildXor}
     /// Build an instruction to compare the values `a` and `b` with the predicate / comparative operator `pred`.
-    pub fn build_cmp(&self, a: &Value, b: &Value, pred: Predicate) -> &Value {
+    pub fn build_signed_cmp(&self, a: &Value, b: &Value, pred: Predicate) -> &Value {
         let (at, bt) = (a.get_type(), b.get_type());
         assert_eq!(at, bt);
         if at.is_integer() {
@@ -188,4 +261,22 @@ impl Builder {
             panic!("expected numzextbers, got {:?}", at)
         }
     }
+
+    pub fn build_unsigned_cmp(&self, a: &Value, b: &Value, pred: Predicate) -> &Value {
+        let (at, bt) = (a.get_type(), b.get_type());
+        assert_eq!(at, bt);
+        assert!(at.is_integer());
+
+
+        let pred = match pred {
+            Predicate::Equal => LLVMIntPredicate::LLVMIntEQ,
+            Predicate::NotEqual => LLVMIntPredicate::LLVMIntNE,
+            Predicate::GreaterThan => LLVMIntPredicate::LLVMIntUGT,
+            Predicate::GreaterThanOrEqual => LLVMIntPredicate::LLVMIntUGE,
+            Predicate::LessThan => LLVMIntPredicate::LLVMIntULT,
+            Predicate::LessThanOrEqual => LLVMIntPredicate::LLVMIntULE
+        };
+        unsafe { core::LLVMBuildICmp(self.into(), pred, a.into(), b.into(), NULL_NAME.as_ptr()) }.into()
+    }
+
 }

@@ -3,8 +3,9 @@
 //!
 //! The original LLVM reference is available [here](http://llvm.org/doxygen/)
 //! but take note that this isn't as thorough as this documentation.
+#![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
-extern crate llvm_sys as ffi;
+pub extern crate llvm_sys as ffi;
 extern crate libc;
 extern crate cbox;
 
@@ -31,7 +32,7 @@ pub use context::{Context, GetContext};
 pub use engine::{JitEngine, JitOptions, Interpreter, ExecutionEngine, GenericValue, GenericValueCast};
 pub use module::{AddressSpace, Module, Functions};
 pub use object::{ObjectFile, Symbol, Symbols};
-pub use target::{TargetData, Target};
+pub use target::{TargetData, Target, get_default_target_triple};
 pub use types::*;
 pub use value::{Alias, Arg, Attribute, Value, Function, GlobalValue, GlobalVariable, Linkage, Predicate};
 pub use util::Sub;
