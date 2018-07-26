@@ -76,7 +76,7 @@ pub trait ExecutionEngine<'a>:'a + Sized + DisposeRef where LLVMExecutionEngineR
     /// type of the global value at this point.
     unsafe fn find_global<T>(&'a self, name: &str) -> Option<&'a T> {
         util::with_cstr(name, |ptr|
-            mem::transmute(engine::LLVMGetGlobalValueAddress(self.into(), ptr))
+            mem::transmute(engine::LLVMGetGlobalValueAddress(self.into(), ptr) as usize)
         )
     }
 }
