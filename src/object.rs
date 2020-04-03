@@ -42,7 +42,7 @@ impl<'a> Iterator for Symbols<'a> {
     type Item = Symbol<'a>;
     fn next(&mut self) -> Option<Symbol<'a>> {
         unsafe {
-            let name = util::to_str(object::LLVMGetSymbolName(self.iter) as *mut i8);
+            let name = util::to_str(object::LLVMGetSymbolName(self.iter) as *mut libc::c_char);
             let size = object::LLVMGetSymbolSize(self.iter) as usize;
             let address = object::LLVMGetSymbolAddress(self.iter) as usize;
             Some(Symbol {

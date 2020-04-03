@@ -64,7 +64,7 @@ impl Value {
     pub fn get_name(&self) -> Option<&str> {
         unsafe {
             let c_name = core::LLVMGetValueName(self.into());
-            util::to_null_str(c_name as *mut i8)
+            util::to_null_str(c_name as *mut libc::c_char)
         }
     }
     /// Sets the name of this value
