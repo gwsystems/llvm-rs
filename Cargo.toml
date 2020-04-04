@@ -25,4 +25,4 @@ libc = "0.*"
 
 [dependencies.llvm-sys]
 version = "*"
-git = "https://github.com/Others/llvm-sys.rs"
+git = "https://github.com/gwsystems/llvm-sys.rs"
