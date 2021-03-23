@@ -108,9 +108,9 @@ impl StructType {
     pub fn get_elements(&self) -> Vec<&Type> {
         unsafe {
             let size = core::LLVMCountStructElementTypes(self.into());
-            let mut els:Vec<_> = (0..size).map(|_| mem::uninitialized()).collect();
+            let mut els:Vec<_> = (0..size).map(|_| mem::MaybeUninit::<&Type>::uninit()).collect();
             core::LLVMGetStructElementTypes(self.into(), els.as_mut_ptr() as *mut LLVMTypeRef);
-            els
+            els.into_iter().map(|el| el.assume_init()).collect()
         }
     }
 }
@@ -145,9 +145,9 @@ impl FunctionType {
     pub fn get_params(&self) -> Vec<&Type> {
         unsafe {
             let count = core::LLVMCountParamTypes(self.into());
-            let mut types:Vec<_> = (0..count).map(|_| mem::uninitialized()).collect();
+            let mut types:Vec<_> = (0..count).map(|_| mem::MaybeUninit::<&Type>::uninit()).collect();
             core::LLVMGetParamTypes(self.into(), types.as_mut_ptr() as *mut LLVMTypeRef);
-            types
+            types.into_iter().map(|type_| type_.assume_init()).collect()
         }
     }
     /// Returns the type that this function returns.

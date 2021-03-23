@@ -82,13 +82,13 @@ impl Module {
     /// Parse this bitcode file into a module, or return an error string.
     pub fn parse_bitcode<'a>(context: &'a Context, path: &str) -> Result<CSemiBox<'a, Module>, CBox<str>> {
         unsafe {
-            let mut out = mem::uninitialized();
-            let mut err = mem::uninitialized();
+            let mut out = mem::MaybeUninit::uninit();
+            let mut err = mem::MaybeUninit::uninit();
             let buf = MemoryBuffer::new_from_file(path)?;
-            if reader::LLVMParseBitcodeInContext(context.into(), buf.as_ptr(), &mut out, &mut err) == 1 {
-                Err(CBox::new(err))
+            if reader::LLVMParseBitcodeInContext(context.into(), buf.as_ptr(), out.as_mut_ptr(), err.as_mut_ptr()) == 1 {
+                Err(CBox::new(err.assume_init()))
             } else {
-                Ok(CSemiBox::new(out))
+                Ok(CSemiBox::new(out.assume_init()))
             }
         }
     }
@@ -161,10 +161,10 @@ impl Module {
     /// when an error occurs.
     pub fn verify(&self) -> Result<(), CBox<str>> {
         unsafe {
-            let mut error = mem::uninitialized();
+            let mut error = mem::MaybeUninit::uninit();
             let action = LLVMVerifierFailureAction::LLVMReturnStatusAction;
-            if analysis::LLVMVerifyModule(self.into(), action, &mut error) == 1 {
-                Err(CBox::new(error))
+            if analysis::LLVMVerifyModule(self.into(), action, error.as_mut_ptr()) == 1 {
+                Err(CBox::new(error.assume_init()))
             } else {
                 Ok(())
             }
@@ -197,9 +197,9 @@ impl Module {
         unsafe {
             let dest = self.into();
             let src = src.into();
-            let mut message = mem::uninitialized();
-            if linker::LLVMLinkModules(dest, src, linker::LLVMLinkerMode::LLVMLinkerPreserveSource, &mut message) == 1 {
-                Err(CBox::new(message))
+            let mut message = mem::MaybeUninit::uninit();
+            if linker::LLVMLinkModules(dest, src, linker::LLVMLinkerMode::LLVMLinkerPreserveSource, message.as_mut_ptr()) == 1 {
+                Err(CBox::new(message.assume_init()))
             } else {
                 Ok(())
             }
@@ -213,9 +213,9 @@ impl Module {
         unsafe {
             let dest = self.into();
             let src = src.as_ptr();
-            let mut message = mem::uninitialized();
-            if linker::LLVMLinkModules(dest, src, linker::LLVMLinkerMode::LLVMLinkerDestroySource, &mut message) == 1 {
-                Err(CBox::new(message))
+            let mut message = mem::MaybeUninit::uninit();
+            if linker::LLVMLinkModules(dest, src, linker::LLVMLinkerMode::LLVMLinkerDestroySource, message.as_mut_ptr()) == 1 {
+                Err(CBox::new(message.assume_init()))
             } else {
                 Ok(())
             }

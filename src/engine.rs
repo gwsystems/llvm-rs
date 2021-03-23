@@ -30,9 +30,9 @@ pub trait ExecutionEngine<'a>:'a + Sized + DisposeRef where LLVMExecutionEngineR
     /// Remove a module from the list of modules to interpret or compile.
     fn remove_module(&'a self, module: &'a Module) -> &'a Module {
         unsafe {
-            let mut out = mem::uninitialized();
-            engine::LLVMRemoveModule(self.into(), module.into(), &mut out, ptr::null_mut());
-            out.into()
+            let mut out = mem::MaybeUninit::uninit();
+            engine::LLVMRemoveModule(self.into(), module.into(), out.as_mut_ptr(), ptr::null_mut());
+            out.assume_init().into()
         }
     }
     /// Execute all of the static constructors for this program.
@@ -134,7 +134,7 @@ impl<'a> ExecutionEngine<'a> for JitEngine {
     type Options = JitOptions;
     fn new(module: &'a Module, options: JitOptions) -> Result<CSemiBox<'a, JitEngine>, CBox<str>> {
         unsafe {
-            let mut ee = mem::uninitialized();
+            let mut ee = mem::MaybeUninit::uninit();
             let mut out = mem::zeroed();
             engine::LLVMLinkInMCJIT();
             if target::LLVM_InitializeNativeTarget() == 1 {
@@ -151,9 +151,9 @@ impl<'a> ExecutionEngine<'a> for JitEngine {
                 MCJMM: ptr::null_mut()
             };
             let size = mem::size_of::<LLVMMCJITCompilerOptions>();
-            let result = engine::LLVMCreateMCJITCompilerForModule(&mut ee, (&*module).into(), &mut options, size, &mut out);
+            let result = engine::LLVMCreateMCJITCompilerForModule(ee.as_mut_ptr(), (&*module).into(), &mut options, size, &mut out);
             if result == 0 {
-                Ok(ee.into())
+                Ok(ee.assume_init().into())
             } else {
                 Err(CBox::new(out))
             }
@@ -168,12 +168,12 @@ impl<'a> ExecutionEngine<'a> for Interpreter {
     type Options = ();
     fn new(module: &'a Module, _: ()) -> Result<CSemiBox<'a, Interpreter>, CBox<str>> {
         unsafe {
-            let mut ee = mem::uninitialized();
+            let mut ee = mem::MaybeUninit::uninit();
             let mut out = mem::zeroed();
             engine::LLVMLinkInInterpreter();
-            let result = engine::LLVMCreateInterpreterForModule(&mut ee, (&*module).into(), &mut out);
+            let result = engine::LLVMCreateInterpreterForModule(ee.as_mut_ptr(), (&*module).into(), &mut out);
             if result == 0 {
-                Ok(ee.into())
+                Ok(ee.assume_init().into())
             } else {
                 Err(CBox::new(out))
             }
