@@ -39,7 +39,7 @@ dependencies = [
 [[package]]
 name = "llvm-sys"
 version = "0.3.0"
-source = "git+https://github.com/gwsystems/llvm-sys.rs#88a4f2da362f5162d28d8fd60503733476040db6"
+source = "git+https://github.com/gwsystems/llvm-sys.rs?branch=sfbase#f4d6b7523e9c3e71a45aa8155f0ef0911689033a"
 dependencies = [
  "bitflags",
  "gcc",
