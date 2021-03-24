@@ -16,7 +16,7 @@ native_ref!(ObjectFile, obj: LLVMObjectFileRef);
 impl ObjectFile {
     /// Parse the object file at the path given, or return an error string if an error occurs.
     pub fn read(path: &str) -> Result<ObjectFile, CBox<str>> {
-        let buf = try!(MemoryBuffer::new_from_file(path));
+        let buf = MemoryBuffer::new_from_file(path)?;
         unsafe {
             let ptr = object::LLVMCreateObjectFile(buf.as_ptr());
             if ptr.is_null() {

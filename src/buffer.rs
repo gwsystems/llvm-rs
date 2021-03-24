@@ -13,12 +13,12 @@ native_ref!(&MemoryBuffer = LLVMMemoryBufferRef);
 impl MemoryBuffer {
     pub fn new_from_file(path: &str) -> Result<CBox<MemoryBuffer>, CBox<str>> {
         util::with_cstr(path, |path| unsafe {
-            let mut output = mem::uninitialized();
-            let mut error = mem::uninitialized();
-            if core::LLVMCreateMemoryBufferWithContentsOfFile(path, &mut output, &mut error) == 1 {
-                Err(CBox::new(error))
+            let mut output = mem::MaybeUninit::uninit();
+            let mut error = mem::MaybeUninit::uninit();
+            if core::LLVMCreateMemoryBufferWithContentsOfFile(path, output.as_mut_ptr(), error.as_mut_ptr()) == 1 {
+                Err(CBox::new(error.assume_init()))
             } else {
-                Ok(CBox::new(output))
+                Ok(CBox::new(output.assume_init()))
             }
         })
     }
